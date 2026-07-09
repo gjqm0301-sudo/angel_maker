@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>요정 도감 메이커</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#241B36;
+    --bg-panel:#2F2347;
+    --bg-panel-2:#3A2C59;
+    --mint:#7CF5C4;
+    --coral:#FF8FA8;
+    --gold:#FFD166;
+    --text-light:#F3EEFF;
+    --text-muted:#B8A9D9;
+    --line:#4A3B70;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(124,245,196,0.10), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(255,143,168,0.12), transparent 45%),
+      var(--bg-deep);
+    color:var(--text-light);
+    font-family:'Noto Sans KR', sans-serif;
+    padding:28px 16px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  header{
+    text-align:center;
+    margin-bottom:26px;
+  }
+  header h1{
+    font-family:'Jua', sans-serif;
+    font-size:clamp(28px,5vw,40px);
+    letter-spacing:1px;
+    margin:0 0 6px;
+    background:linear-gradient(90deg, var(--mint), var(--coral));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  header p{color:var(--text-muted);margin:0;font-size:14px;}
+
+  .board{
+    display:grid;
+    grid-template-columns:220px 1fr 220px;
+    gap:18px;
+    align-items:start;
+  }
+  @media (max-width:860px){
+    .board{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:16px;
+  }
+  .panel h3{
+    font-family:'Jua',sans-serif;
+    font-size:15px;
+    margin:0 0 12px;
+    color:var(--mint);
+    display:flex;align-items:center;gap:6px;
+  }
+
+  .upload-box{
+    border:2px dashed var(--line);
+    border-radius:14px;
+    padding:18px 10px;
+    text-align:center;
+    cursor:pointer;
+    transition:.2s;
+    font-size:13px;
+    color:var(--text-muted);
+  }
+  .upload-box:hover{border-color:var(--mint);color:var(--text-light);}
+  .upload-box input{display:none;}
+
+  .cat-tabs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+  .cat-tab{
+    flex:1 1 30%;background:var(--bg-panel-2);border:1px solid var(--line);color:var(--text-muted);
+    border-radius:8px;padding:6px 3px;font-size:11px;font-weight:700;cursor:pointer;
+  }
+  .cat-tab.active{background:var(--coral);color:#3A0E19;border-color:var(--coral);}
+  .sticker-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .sticker-item{
+    background:var(--bg-panel-2);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:6px;
+    cursor:pointer;
+    transition:.15s;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .sticker-item:hover{border-color:var(--coral);transform:translateY(-2px);}
+  .sticker-item img{width:100%;height:44px;object-fit:contain;}
+
+  .hint{font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.5;}
+
+  .stage-wrap{
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+  }
+  .scan-frame{
+    position:relative;
+    width:min(440px, 92vw);
+    aspect-ratio:1/1;
+    border-radius:20px;
+    padding:6px;
+    background:linear-gradient(135deg, var(--mint), var(--coral));
+  }
+  .scan-inner{
+    position:relative;
+    width:100%;height:100%;
+    border-radius:16px;
+    overflow:hidden;
+    background:#150F22;
+  }
+  .scan-inner canvas{border-radius:16px;}
+  .scanline{
+    position:absolute;left:0;right:0;height:3px;
+    background:linear-gradient(90deg, transparent, var(--mint), transparent);
+    top:0;
+    opacity:0;
+    pointer-events:none;
+  }
+  .scanline.active{animation:sweep 1.1s ease-in-out;}
+  @keyframes sweep{
+    0%{top:0;opacity:1;}
+    95%{opacity:1;}
+    100%{top:100%;opacity:0;}
+  }
+  .stage-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+  button{
+    font-family:'Noto Sans KR', sans-serif;
+    font-weight:700;
+    border:none;
+    border-radius:10px;
+    padding:9px 16px;
+    cursor:pointer;
+    font-size:13px;
+    transition:.15s;
+  }
+  button:active{transform:scale(0.96);}
+  .btn-ghost{background:var(--bg-panel-2);color:var(--text-light);border:1px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--text-muted);}
+  .btn-mint{background:var(--mint);color:#0F2B22;}
+  .btn-coral{background:var(--coral);color:#3A0E19;}
+  .btn-gold{background:var(--gold);color:#3A2600;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+
+  .attr-row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+  .attr-chip{
+    padding:5px 10px;border-radius:999px;font-size:12px;cursor:pointer;
+    border:1px solid var(--line);background:var(--bg-panel-2);color:var(--text-muted);
+  }
+  .attr-chip.active{border-color:var(--gold);color:var(--gold);background:rgba(255,209,102,.1);}
+
+  /* Dex Card */
+  .card-section{margin-top:30px;display:flex;justify-content:center;}
+  #dexCard{
+    width:360px;
+    background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+    border:2px solid var(--line);
+    border-radius:22px;
+    padding:18px;
+    position:relative;
+    overflow:hidden;
+  }
+  #dexCard::before{
+    content:"";position:absolute;top:-40px;right:-40px;width:140px;height:140px;
+    background:radial-gradient(circle, rgba(124,245,196,.25), transparent 70%);
+  }
+  .card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .rarity-badge{
+    font-family:'Jua',sans-serif;font-size:12px;padding:4px 10px;border-radius:8px;
+    background:var(--gold);color:#3A2600;
+  }
+  .dex-no{font-size:11px;color:var(--text-muted);font-family:'Jua',sans-serif;}
+  #cardPhotoWrap{
+    width:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;
+    border:1px solid var(--line);margin-bottom:12px;background:#150F22;
+  }
+  #cardPhoto{width:100%;height:100%;object-fit:cover;display:block;}
+  .name-input{
+    width:100%;background:transparent;border:none;border-bottom:2px solid var(--line);
+    color:var(--text-light);font-family:'Jua',sans-serif;font-size:20px;padding:4px 2px;
+    margin-bottom:12px;outline:none;
+  }
+  .name-input:focus{border-color:var(--mint);}
+  .stat-row{margin-bottom:8px;}
+  .stat-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:3px;}
+  .stat-bar-bg{height:8px;border-radius:6px;background:var(--bg-deep);overflow:hidden;}
+  .stat-bar-fill{height:100%;border-radius:6px;width:0%;transition:width .8s cubic-bezier(.2,.9,.3,1.2);}
+  .stat-attr{margin-top:10px;font-size:12px;color:var(--text-muted);}
+  .stat-attr b{color:var(--coral);}
+
+  .save-row{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap;}
+  .drive-url{
+    width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--bg-deep);color:var(--text-light);font-size:12px;margin-bottom:8px;
+  }
+  .status-msg{font-size:12px;text-align:center;margin-top:8px;min-height:16px;color:var(--text-muted);}
+  .status-msg.ok{color:var(--mint);}
+  .status-msg.err{color:var(--coral);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>✦ 요정 도감 메이커</h1>
+    <p>사진을 올리고, 요정 장식을 씌워서 나만의 도감 카드를 만들어보세요</p>
+  </header>
+
+  <div class="board">
+    <!-- 왼쪽: 업로드 + 속성 -->
+    <div class="panel">
+      <h3>📷 사진 업로드</h3>
+      <label class="upload-box" id="uploadBox">
+        <span id="uploadText">클릭해서 사진 선택</span>
+        <input type="file" id="fileInput" accept="image/*">
+      </label>
+      <h3 style="margin-top:18px;">🌈 속성 선택</h3>
+      <div class="attr-row" id="attrRow"></div>
+      <div class="hint">속성에 따라 카드 색상과 마법력 보정이 달라져요.</div>
+    </div>
+
+    <!-- 가운데: 캔버스 -->
+    <div class="panel stage-wrap">
+      <h3 style="align-self:flex-start;">✨ 편집 화면</h3>
+      <div class="scan-frame">
+        <div class="scan-inner">
+          <canvas id="fabricCanvas" width="428" height="428"></canvas>
+          <div class="scanline" id="scanline"></div>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <button class="btn-ghost" id="bringFront">맨 앞으로</button>
+        <button class="btn-ghost" id="deleteSel">선택 삭제</button>
+        <button class="btn-ghost" id="clearAll">전체 초기화</button>
+      </div>
+      <div class="hint" style="text-align:center;">스티커를 드래그해서 위치를 옮기고, 모서리를 잡아 크기·회전을 조절하세요.</div>
+    </div>
+
+    <!-- 오른쪽: 스티커 목록 -->
+    <div class="panel">
+      <h3>🎀 요정 장식</h3>
+      <div class="cat-tabs" id="catTabs">
+        <button class="cat-tab active" data-cat="head">머리</button>
+        <button class="cat-tab" data-cat="wings">날개</button>
+        <button class="cat-tab" data-cat="dress">드레스</button>
+        <button class="cat-tab" data-cat="top">상의</button>
+        <button class="cat-tab" data-cat="shoes">신발</button>
+      </div>
+      <div class="sticker-grid" id="stickerGrid"></div>
+      <div class="hint">원하는 장식을 클릭하면 화면 중앙에 추가돼요. 캔버스 밖으로 나가면 저장할 때 잘리니, 안쪽에 맞춰 배치해주세요.</div>
+    </div>
+  </div>
+
+  <!-- 카드 생성 버튼 -->
+  <div style="display:flex;justify-content:center;margin-top:20px;">
+    <button class="btn-gold" id="makeCardBtn" style="font-size:15px;padding:12px 28px;">✦ 도감 카드 만들기</button>
+  </div>
+
+  <!-- 도감 카드 -->
+  <div class="card-section" id="cardSection" style="display:none;">
+    <div id="dexCard">
+      <div class="card-top">
+        <span class="dex-no" id="dexNo">NO. 001</span>
+        <span class="rarity-badge" id="rarityBadge">노멀</span>
+      </div>
+      <div id="cardPhotoWrap"><img id="cardPhoto" alt="요정 사진"></div>
+      <input class="name-input" id="fairyName" placeholder="요정 이름을 지어주세요" maxlength="12">
+
+      <div class="stat-row">
+        <div class="stat-label"><span>반짝력</span><span id="statSparkleVal">0</span></div>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="statSparkle" style="background:var(--mint);"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>애교력</span><span id="statCuteVal">0</span></div>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="statCute" style="background:var(--coral);"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>마법력</span><span id="statMagicVal">0</span></div>
+        <div class="stat-bar-bg"><div class="stat-bar-fill" id="statMagic" style="background:var(--gold);"></div></div>
+      </div>
+      <div class="stat-attr">속성: <b id="attrLabel">-</b></div>
+
+      <div style="display:flex;justify-content:center;margin-top:14px;">
+        <button class="btn-ghost" id="rerollBtn">🎲 스탯 다시 뽑기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 저장 -->
+  <div class="save-row" id="saveRow" style="display:none;flex-direction:column;align-items:center;">
+    <input class="drive-url" id="driveUrl" placeholder="구글 드라이브 저장용 Apps Script 웹앱 URL (선택사항)" value="https://script.google.com/macros/s/AKfycbyGA72GZIvkssJf5pC7y-jW_bxwVfo0H7QZgNI2hzJQFmkB-_fLsUsD7FIMk5hj9aWF/exec">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <button class="btn-mint" id="downloadBtn">⬇ PNG로 저장</button>
+      <button class="btn-coral" id="driveBtn">☁ 구글 드라이브에 저장</button>
+    </div>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+</div>
+
+<script>
+/* ---------------- 데이터 ---------------- */
+const ATTRS = [
+  {key:'사랑', color:'#FF8FA8'},
+  {key:'기쁨', color:'#FFD166'},
+  {key:'차분', color:'#7CF5C4'},
+  {key:'용기', color:'#9B8CFF'},
+  {key:'호기심', color:'#6FD0FF'},
+];
+let selectedAttr = ATTRS[0];
+
+// 오리지널 요정 장식 SVG (티니핑을 흉내내지 않은 자체 디자인)
+// 색상 변형이 필요한 장식(날개, 드레스)은 템플릿 함수로 생성
+function wingSVG(color, colorLight){
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 160">
+    <g>
+      <path d="M130 80 C 90 20, 20 20, 10 70 C 4 105, 40 130, 90 110 C 110 102, 122 92, 130 80 Z" fill="${color}" opacity="0.92"/>
+      <path d="M130 80 C 100 45, 55 45, 45 75 C 40 98, 65 112, 95 100 C 112 93, 122 87, 130 80 Z" fill="${colorLight}" opacity="0.9"/>
+      <path d="M130 80 C 170 20, 240 20, 250 70 C 256 105, 220 130, 170 110 C 150 102, 138 92, 130 80 Z" fill="${color}" opacity="0.92"/>
+      <path d="M130 80 C 160 45, 205 45, 215 75 C 220 98, 195 112, 165 100 C 148 93, 138 87, 130 80 Z" fill="${colorLight}" opacity="0.9"/>
+    </g>
+  </svg>`;
+}
+function dressSVG(color, colorDark){
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220">
+    <path d="M80 20 Q100 8 120 20 L128 70 L100 60 L72 70 Z" fill="${colorDark}"/>
+    <path d="M72 70 L128 70 L170 190 Q100 215 30 190 Z" fill="${color}"/>
+    <path d="M72 70 L128 70 L138 100 Q100 92 62 100 Z" fill="${colorDark}" opacity="0.55"/>
+    <circle cx="100" cy="140" r="5" fill="#fff" opacity="0.7"/>
+    <circle cx="80" cy="165" r="4" fill="#fff" opacity="0.6"/>
+    <circle cx="120" cy="165" r="4" fill="#fff" opacity="0.6"/>
+  </svg>`;
+}
+
+const WING_COLORS = [
+  {name:'핑크 날개', color:'#FF8FA8', light:'#FFC2D1'},
+  {name:'민트 날개', color:'#7CF5C4', light:'#C6FFE8'},
+  {name:'라벤더 날개', color:'#9B8CFF', light:'#D3C9FF'},
+  {name:'골드 날개', color:'#FFD166', light:'#FFE8A8'},
+  {name:'스카이 날개', color:'#6FD0FF', light:'#BFEBFF'},
+];
+const DRESS_COLORS = [
+  {name:'핑크 드레스', color:'#FF9EB5', dark:'#E85D82'},
+  {name:'라벤더 드레스', color:'#B3A2FF', dark:'#8C74E8'},
+  {name:'민트 드레스', color:'#8FF0CE', dark:'#4FCBA0'},
+  {name:'골드 드레스', color:'#FFE08A', dark:'#F0B93D'},
+];
+
+const STICKERS = [
+  {
+    name:'하트 안테나', category:'head',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140">
+      <path d="M60 90 Q40 40 70 20 Q90 8 100 30 Q110 8 130 20 Q160 40 140 90" fill="none" stroke="#FF8FA8" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="70" cy="20" r="16" fill="#FF8FA8"/>
+      <circle cx="130" cy="20" r="16" fill="#FF8FA8"/>
+      <path d="M62 12 c4 -8 14 -8 18 0 c4 -8 14 -8 18 0 c0 10 -18 20 -18 20 s-18 -10 -18 -20z" fill="#FFD166" transform="translate(52,-6) scale(0.9)"/>
+    </svg>`
+  },
+  {
+    name:'별 안테나', category:'head',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140">
+      <path d="M55 95 Q45 45 100 40 Q155 45 145 95" fill="none" stroke="#9B8CFF" stroke-width="10" stroke-linecap="round"/>
+      <g fill="#FFD166">
+        <path d="M100 5 l7 16 17 2 -13 12 4 17 -15 -9 -15 9 4 -17 -13 -12 17 -2z"/>
+      </g>
+    </svg>`
+  },
+  {
+    name:'꽃 리본', category:'head',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140">
+      <g transform="translate(100,70)">
+        <ellipse rx="26" ry="16" fill="#7CF5C4" transform="rotate(0)"/>
+        <ellipse rx="26" ry="16" fill="#7CF5C4" transform="rotate(72)"/>
+        <ellipse rx="26" ry="16" fill="#7CF5C4" transform="rotate(144)"/>
+        <ellipse rx="26" ry="16" fill="#7CF5C4" transform="rotate(216)"/>
+        <ellipse rx="26" ry="16" fill="#7CF5C4" transform="rotate(288)"/>
+        <circle r="14" fill="#FFD166"/>
+      </g>
+    </svg>`
+  },
+  {
+    name:'반짝 왕관', category:'head',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140">
+      <path d="M40 105 L50 60 L80 85 L100 45 L120 85 L150 60 L160 105 Z" fill="#FFD166" stroke="#FFB700" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="100" cy="45" r="6" fill="#FF8FA8"/>
+      <circle cx="50" cy="60" r="5" fill="#7CF5C4"/>
+      <circle cx="150" cy="60" r="5" fill="#7CF5C4"/>
+    </svg>`
+  },
+  {
+    name:'구름 뿔', category:'head',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140">
+      <path d="M60 105 Q30 105 35 80 Q20 70 35 55 Q40 30 65 35 Q75 15 100 25 Q125 15 135 35 Q160 30 165 55 Q180 70 165 80 Q170 105 140 105Z" fill="#6FD0FF" opacity="0.9"/>
+      <circle cx="70" cy="60" r="6" fill="#fff"/>
+      <circle cx="130" cy="60" r="6" fill="#fff"/>
+    </svg>`
+  },
+  {
+    name:'리본 나비', category:'head',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140">
+      <g transform="translate(100,70)">
+        <path d="M0 0 C -40 -35 -70 -10 -60 20 C -40 35 -15 15 0 0 Z" fill="#9B8CFF"/>
+        <path d="M0 0 C 40 -35 70 -10 60 20 C 40 35 15 15 0 0 Z" fill="#9B8CFF"/>
+        <circle r="8" fill="#FFD166"/>
+      </g>
+    </svg>`
+  },
+  {
+    name:'별빛 망토', category:'top',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 160">
+      <path d="M60 20 Q110 40 160 20 L185 140 Q110 165 35 140 Z" fill="#9B8CFF" opacity="0.92"/>
+      <path d="M60 20 Q110 40 160 20 L152 45 Q110 62 68 45 Z" fill="#7A63E0"/>
+      <circle cx="90" cy="90" r="5" fill="#FFD166"/>
+      <circle cx="130" cy="105" r="4" fill="#FFD166"/>
+      <circle cx="105" cy="125" r="4" fill="#7CF5C4"/>
+    </svg>`
+  },
+  {
+    name:'하트 스카프', category:'top',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 160">
+      <path d="M50 40 Q110 70 170 40 Q170 60 150 75 L130 130 L110 100 L90 130 L70 75 Q50 60 50 40Z" fill="#FF8FA8"/>
+      <path d="M100 55 c4 -8 14 -8 18 0 c4 -8 14 -8 18 0 c0 10 -18 20 -18 20 s-18 -10 -18 -20z" fill="#fff" opacity="0.85"/>
+    </svg>`
+  },
+  {
+    name:'리본 나비넥타이', category:'top',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 160">
+      <g transform="translate(110,80)">
+        <path d="M0 0 C -45 -30 -80 -5 -65 25 C -45 40 -18 15 0 0 Z" fill="#FFD166"/>
+        <path d="M0 0 C 45 -30 80 -5 65 25 C 45 40 18 15 0 0 Z" fill="#FFD166"/>
+        <circle r="10" fill="#FF8FA8"/>
+      </g>
+    </svg>`
+  },
+  {
+    name:'구름 카라', category:'top',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 160">
+      <path d="M40 60 Q110 100 180 60 L165 90 Q110 120 55 90 Z" fill="#6FD0FF"/>
+      <circle cx="70" cy="70" r="10" fill="#fff" opacity="0.8"/>
+      <circle cx="150" cy="70" r="10" fill="#fff" opacity="0.8"/>
+      <circle cx="110" cy="82" r="10" fill="#fff" opacity="0.8"/>
+    </svg>`
+  },
+  {
+    name:'반짝이 리본 슈즈', category:'shoes',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 140">
+      <ellipse cx="65" cy="100" rx="45" ry="24" fill="#FF8FA8"/>
+      <ellipse cx="155" cy="100" rx="45" ry="24" fill="#FF8FA8"/>
+      <g transform="translate(65,80)"><path d="M0 0 C -18 -14 -32 -4 -26 10 C -18 16 -7 6 0 0 Z" fill="#FFD166"/><path d="M0 0 C 18 -14 32 -4 26 10 C 18 16 7 6 0 0 Z" fill="#FFD166"/><circle r="5" fill="#fff"/></g>
+      <g transform="translate(155,80)"><path d="M0 0 C -18 -14 -32 -4 -26 10 C -18 16 -7 6 0 0 Z" fill="#FFD166"/><path d="M0 0 C 18 -14 32 -4 26 10 C 18 16 7 6 0 0 Z" fill="#FFD166"/><circle r="5" fill="#fff"/></g>
+    </svg>`
+  },
+  {
+    name:'별빛 부츠', category:'shoes',
+    svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 140">
+      <path d="M35 50 L95 50 L95 85 L115 85 L115 115 L20 115 L20 75 Q20 50 35 50Z" fill="#9B8CFF"/>
+      <path d="M125 50 L185 50 L185 85 L205 85 L205 115 L110 115 L110 75 Q110 50 125 50Z" fill="#9B8CFF"/>
+      <path d="M60 60 l4 9 10 1 -7 7 2 10 -9 -5 -9 5 2 -10 -7 -7 10 -1z" fill="#FFD166"/>
+      <path d="M150 60 l4 9 10 1 -7 7 2 10 -9 -5 -9 5 2 -10 -7 -7 10 -1z" fill="#FFD166"/>
+    </svg>`
+  },
+];
+
+WING_COLORS.forEach(w=>{
+  STICKERS.push({ name:w.name, category:'wings', svg: wingSVG(w.color, w.light) });
+});
+DRESS_COLORS.forEach(d=>{
+  STICKERS.push({ name:d.name, category:'dress', svg: dressSVG(d.color, d.dark) });
+});
+
+/* ---------------- 속성 UI ---------------- */
+const attrRow = document.getElementById('attrRow');
+ATTRS.forEach((a,i)=>{
+  const chip = document.createElement('div');
+  chip.className = 'attr-chip' + (i===0?' active':'');
+  chip.textContent = a.key;
+  chip.style.borderColor = a.color;
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.attr-chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedAttr = a;
+  });
+  attrRow.appendChild(chip);
+});
+
+/* ---------------- 스티커 목록 UI (카테고리 탭) ---------------- */
+const stickerGrid = document.getElementById('stickerGrid');
+let activeCat = 'head';
+
+// 스티커별 objectURL 미리 생성
+STICKERS.forEach(s=>{
+  const blob = new Blob([s.svg], {type:'image/svg+xml'});
+  s.url = URL.createObjectURL(blob);
+});
+
+function renderStickerGrid(){
+  stickerGrid.innerHTML = '';
+  STICKERS.filter(s=>s.category===activeCat).forEach(s=>{
+    const item = document.createElement('div');
+    item.className = 'sticker-item';
+    item.title = s.name;
+    item.innerHTML = `<img src="${s.url}" alt="${s.name}">`;
+    item.addEventListener('click', ()=> addSticker(s.url, s.category));
+    stickerGrid.appendChild(item);
+  });
+}
+document.querySelectorAll('.cat-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    activeCat = tab.dataset.cat;
+    renderStickerGrid();
+  });
+});
+renderStickerGrid();
+
+/* ---------------- Fabric 캔버스 ---------------- */
+// 화면 크기에 맞춰 캔버스 실제 해상도를 결정 (스티커가 잘리지 않도록 여유 있게)
+const stageSize = Math.round(document.querySelector('.scan-inner').clientWidth) || 428;
+const canvas = new fabric.Canvas('fabricCanvas', {
+  selection:false,
+  width: stageSize,
+  height: stageSize
+});
+let bgImg = null;
+
+function addSticker(url, category){
+  fabric.Image.fromURL(url, (img)=>{
+    const w = canvas.getWidth(), h = canvas.getHeight();
+    // 캔버스 안쪽에 안전하게 들어오도록 카테고리별 기본 위치/크기를 다르게 설정
+    let topPos, widthTarget, sendBack = false;
+    if(category === 'wings'){
+      topPos = h * 0.48; widthTarget = w * 0.85; sendBack = true; // 날개는 몸 뒤쪽에 배치
+    } else if(category === 'dress'){
+      topPos = h * 0.72; widthTarget = w * 0.55; sendBack = true; // 드레스는 몸통 위, 사진보다 살짝 뒤
+    } else if(category === 'top'){
+      topPos = h * 0.62; widthTarget = w * 0.42;
+    } else if(category === 'shoes'){
+      topPos = h * 0.90; widthTarget = w * 0.32;
+    } else { // head
+      topPos = h * 0.20; widthTarget = w * 0.30;
+    }
+    img.scaleToWidth(widthTarget);
+    img.set({
+      left: w/2,
+      top: topPos,
+      originX:'center', originY:'center',
+      cornerColor:'#7CF5C4', cornerStyle:'circle', transparentCorners:false,
+      borderColor:'#FF8FA8'
+    });
+    canvas.add(img);
+    if(sendBack && bgImg){ canvas.moveTo(img, canvas.getObjects().indexOf(bgImg) + 1); }
+    canvas.setActiveObject(img);
+  }, {crossOrigin:'anonymous'});
+}
+
+document.getElementById('bringFront').onclick = ()=>{
+  const o = canvas.getActiveObject();
+  if(o){ o.bringToFront(); canvas.renderAll(); }
+};
+document.getElementById('deleteSel').onclick = ()=>{
+  const o = canvas.getActiveObject();
+  if(o){ canvas.remove(o); }
+};
+document.getElementById('clearAll').onclick = ()=>{
+  canvas.getObjects().forEach(o=>{ if(o!==bgImg) canvas.remove(o); });
+};
+
+/* ---------------- 업로드 ---------------- */
+const fileInput = document.getElementById('fileInput');
+const uploadText = document.getElementById('uploadText');
+fileInput.addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  uploadText.textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    fabric.Image.fromURL(ev.target.result, (img)=>{
+      // cover-fit into canvas
+      const cw = canvas.getWidth(), ch = canvas.getHeight();
+      const scale = Math.max(cw/img.width, ch/img.height);
+      img.set({
+        left: cw/2, top: ch/2,
+        originX:'center', originY:'center',
+        scaleX: scale, scaleY: scale,
+        selectable:false, evented:false
+      });
+      if(bgImg) canvas.remove(bgImg);
+      bgImg = img;
+      canvas.add(img);
+      img.moveTo(0);
+      canvas.renderAll();
+    });
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById('uploadBox').addEventListener('click', (e)=>{
+  if(e.target.tagName !== 'INPUT') fileInput.click();
+});
+
+/* ---------------- 도감 카드 생성 ---------------- */
+let dexCounter = Math.floor(Math.random()*40)+1;
+document.getElementById('dexNo').textContent = 'NO. ' + String(dexCounter).padStart(3,'0');
+
+function rollStats(){
+  const s1 = Math.floor(Math.random()*61)+30; // 30~90
+  const s2 = Math.floor(Math.random()*61)+30;
+  const s3 = Math.floor(Math.random()*61)+30;
+  animateBar('statSparkle','statSparkleVal', s1);
+  animateBar('statCute','statCuteVal', s2);
+  animateBar('statMagic','statMagicVal', s3);
+
+  const total = s1+s2+s3;
+  let rarity = '노멀', badgeColor = 'var(--gold)';
+  if(total > 220){ rarity='레전더리'; }
+  else if(total > 180){ rarity='에픽'; }
+  else if(total > 140){ rarity='레어'; }
+  document.getElementById('rarityBadge').textContent = rarity;
+  document.getElementById('attrLabel').textContent = selectedAttr.key;
+  document.getElementById('attrLabel').style.color = selectedAttr.color;
+}
+function animateBar(barId, valId, value){
+  const bar = document.getElementById(barId);
+  const val = document.getElementById(valId);
+  requestAnimationFrame(()=>{ bar.style.width = value + '%'; });
+  val.textContent = value;
+}
+
+document.getElementById('makeCardBtn').addEventListener('click', ()=>{
+  if(!bgImg){
+    showStatus('사진을 먼저 업로드해주세요.', 'err');
+    return;
+  }
+  canvas.discardActiveObject();
+  canvas.renderAll();
+  const dataUrl = canvas.toDataURL({format:'png', multiplier:2});
+  document.getElementById('cardPhoto').src = dataUrl;
+  document.getElementById('cardSection').style.display = 'flex';
+  document.getElementById('saveRow').style.display = 'flex';
+  rollStats();
+
+  const scanline = document.getElementById('scanline');
+  scanline.classList.remove('active');
+  void scanline.offsetWidth;
+  scanline.classList.add('active');
+
+  document.getElementById('cardSection').scrollIntoView({behavior:'smooth', block:'center'});
+});
+document.getElementById('rerollBtn').addEventListener('click', rollStats);
+
+/* ---------------- 저장 ---------------- */
+function showStatus(msg, type){
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status-msg ' + (type||'');
+}
+
+async function captureCard(){
+  const cardEl = document.getElementById('dexCard');
+  const c = await html2canvas(cardEl, {backgroundColor:null, scale:2});
+  return c.toDataURL('image/png');
+}
+
+document.getElementById('downloadBtn').addEventListener('click', async ()=>{
+  showStatus('카드 이미지를 만드는 중...');
+  const dataUrl = await captureCard();
+  const a = document.createElement('a');
+  const name = document.getElementById('fairyName').value.trim() || 'fairy_dex';
+  a.href = dataUrl;
+  a.download = name + '.png';
+  a.click();
+  showStatus('저장 완료! 다운로드 폴더를 확인하세요.', 'ok');
+});
+
+document.getElementById('driveBtn').addEventListener('click', async ()=>{
+  const url = document.getElementById('driveUrl').value.trim();
+  if(!url){
+    showStatus('Apps Script 웹앱 URL을 먼저 입력해주세요.', 'err');
+    return;
+  }
+  showStatus('구글 드라이브로 전송 중...');
+  try{
+    const dataUrl = await captureCard();
+    const name = document.getElementById('fairyName').value.trim() || 'fairy_dex';
+    await fetch(url, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: name,
+        image: dataUrl,
+        attr: selectedAttr.key,
+        rarity: document.getElementById('rarityBadge').textContent,
+        stats:{
+          sparkle: document.getElementById('statSparkleVal').textContent,
+          cute: document.getElementById('statCuteVal').textContent,
+          magic: document.getElementById('statMagicVal').textContent
+        }
+      })
+    });
+    // no-cors 모드에서는 응답 내용을 읽을 수 없어, 요청 전송 성공만 안내합니다.
+    showStatus('전송을 완료했어요. 구글 드라이브 폴더에서 확인해보세요.', 'ok');
+  }catch(err){
+    showStatus('전송 실패: ' + err.message, 'err');
+  }
+});
+</script>
+</body>
+</html>
